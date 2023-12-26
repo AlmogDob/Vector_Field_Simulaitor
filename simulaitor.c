@@ -4,11 +4,6 @@ that are better then me in math but i fill bad asking them because it
 will take a few hours, but may by they will by ready to help.*/
 
 
-
-
-
-
-
 #include <stdio.h>
 #include <time.h>
 #include <math.h>
