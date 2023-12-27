@@ -3,6 +3,8 @@
 #define VEC2_IMPLEMENTATION
 #include "vec2.h"
 
+#define PI 3.14159265359
+
 vec2 polar2cartesian(vec2 v_in);
 vec2 cartesian2polar(vec2 v_in);
 
@@ -16,6 +18,9 @@ int main(int argc, char const *argv[])
 
     float x = 40.5;
 
+    vec2 v1 = vec2_new(0,1);
+    VEC2_PRINT(v1);
+    VEC2_PRINT(polar2cartesian(v1));
     printf("%10.3f\n", x);
 
     return 0;

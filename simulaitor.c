@@ -1,7 +1,7 @@
-/* There is something horobly wrong with the underling math in this code
-may by I will ask a friend to go over this code with me. I have friends
-that are better then me in math but i fill bad asking them because it
-will take a few hours, but may by they will by ready to help.*/
+/* Currently, this works. But,
+the 'zoom' doesn't work properly with the
+particals, so I will look in the future 
+what to do.*/
 
 
 #include <stdio.h>
@@ -41,7 +41,7 @@ void update(void);
 void render(void);
 void destroy_window(void);
 void fix_framerate(void);
-float map(float s, float min_in, float max_in, float min_out, float max_out);
+float liniar_map(float s, float min_in, float max_in, float min_out, float max_out);
 void generate_flow_field(void);
 void render_draw_flow_field_to_texture(SDL_Renderer *renderer, SDL_Texture *texture);
 vec2 V_source_p(vec2 v_in);
@@ -51,6 +51,7 @@ vec2 polar2cartesian(vec2 v_in);
 vec2 cartesian2polar(vec2 v_in);
 void DrawCircle(SDL_Renderer * renderer, int32_t centreX, int32_t centreY, int32_t radius);
 void fill_circle(SDL_Renderer *renderer, int x, int y, int radius, SDL_Color color);
+void update_particals(void);
 
 SDL_Window *window = NULL;
 SDL_Renderer *renderer = NULL;
@@ -69,18 +70,21 @@ float delta_time;
 float fps = 0;
 float scale = 30;
 float zoom = 1;
-float vector_length_factor = 3;
+float vector_length_factor = 2;
 int rows, cols;
 Mat flow_field_theta;
 Mat flow_field_size;
+
 float Q = 1000;
-float Gamma = 0;
-float U_inf = 1;
+float Gamma = 8000;
+float U_inf = 10;
 float a = 40;
-float offset_x = WINDOW_WIDTH/2;
+
+float offset_x = -WINDOW_WIDTH/2;
 float original_offset_x;
-float offset_y = WINDOW_HEIGHT/2;
+float offset_y = -WINDOW_HEIGHT/2;
 float original_offset_y;
+
 float max_length;
 float min_length;
 float final_max_length;
@@ -89,15 +93,17 @@ float max_theta;
 float min_theta;
 float final_max_theta;
 float final_min_theta;
+
 int generated_flow_field = 0;
 int left_button_pressed = 0;
+int left_mouse_was_pressed = 0;
 int right_button_pressed = 0;
 vec2 last_mouse_position = {.x = 0, .y = 0};
 int to_print = 0;
 int hide_center = 0;
 partical particals[100];
 int num_of_particals = -1;
-float partical_velocity_factor = 100;
+float partical_velocity_factor = 10;
 
 int main()
 {
@@ -204,8 +210,8 @@ void process_input(void)
                     game_is_running = 0;
                 }
                 if (event.key.keysym.sym == SDLK_r) {
-                    offset_x = WINDOW_WIDTH/2;
-                    offset_y = WINDOW_HEIGHT/2;
+                    offset_x = original_offset_x;
+                    offset_y = original_offset_y;
                     max_length = 0;
                     min_length = 1000;
                     max_theta = 0;
@@ -218,7 +224,12 @@ void process_input(void)
                     to_print = 1;
                 }
                 if (event.key.keysym.sym == SDLK_h) {
-                    hide_center = 1;
+                    if (!hide_center) {
+                        hide_center = 1;
+                    }
+                    else if (hide_center) {
+                        hide_center = 0;
+                    }
                 }
                 if (event.key.keysym.sym == SDLK_d) {
                     num_of_particals = -1;
@@ -245,6 +256,7 @@ void process_input(void)
             case SDL_MOUSEBUTTONUP:
                 if (event.button.button == SDL_BUTTON_LEFT) {
                     left_button_pressed = 0;
+                    left_mouse_was_pressed = 0;
                 }
                 if (event.button.button == SDL_BUTTON_RIGHT) {
                     right_button_pressed = 0;
@@ -259,8 +271,8 @@ void process_input(void)
 
 void update(void)
 {
-    vec2 current_mouse_position, current_position_c, current_position_p;
-    vec2 diff, current_vector_p, current_vector_c;
+    vec2 current_mouse_position;
+    vec2 diff;
     int mouse_x, mouse_y;
     float diff_length;
 
@@ -278,24 +290,24 @@ void update(void)
 
     SDL_GetMouseState(&mouse_x, &mouse_y);
     current_mouse_position = vec2_new((float)mouse_x, (float)mouse_y);
-    if (!last_mouse_position.x && !last_mouse_position.y) {
-        last_mouse_position = vec2_add(&last_mouse_position, &current_mouse_position);
-    }
     diff = vec2_sub(&current_mouse_position, &last_mouse_position);
     diff_length = vec2_length(&diff);
         
     if (left_button_pressed) {
-        // printf("left down\n");
+        if (!left_mouse_was_pressed) {
+            last_mouse_position = vec2_add(&last_mouse_position, &current_mouse_position);
+            left_mouse_was_pressed = 1;
+        }
         if (diff_length > 0) {
-            offset_x += diff.x;
-            offset_y -= diff.y;
+            offset_x -= diff.x;
+            offset_y += diff.y;
         }
         
     }
     last_mouse_position = current_mouse_position;
 
-    rows = (int)(WINDOW_HEIGHT/scale);
-    cols = (int)(WINDOW_WIDTH/scale);
+    rows = (int)((WINDOW_HEIGHT * (1/zoom))/scale);
+    cols = (int)((WINDOW_WIDTH * (1/zoom))/scale);
 
     flow_field_theta = mat_alloc(rows, cols);
     flow_field_size = mat_alloc(rows, cols);
@@ -313,22 +325,13 @@ void update(void)
         // if (num_of_particals < 99) {
         //     num_of_particals++;
         // }
-        particals[num_of_particals].x = current_mouse_position.x;
-        particals[num_of_particals].y = current_mouse_position.y;
+        particals[num_of_particals].x = current_mouse_position.x*(1/zoom);
+        particals[num_of_particals].y = WINDOW_HEIGHT - (current_mouse_position.y)*(1/zoom);
 
     }
 
-    for (int i = 0; i <= num_of_particals; i++) {
-        current_position_c = vec2_new((particals[i].x - offset_x), (particals[i].y - offset_y));
-        current_position_p = cartesian2polar(current_position_c);
-        current_vector_p = V_circle_p(current_position_p);
-        current_vector_c = polar2cartesian(current_vector_p);
-
-        particals[i].v_x = current_vector_c.x*partical_velocity_factor;
-        particals[i].v_y = current_vector_c.y*partical_velocity_factor;
-        particals[i].x += particals[i].v_x*delta_time;
-        particals[i].y -= particals[i].v_y*delta_time;
-    }
+    update_particals();
+    
 
 
     free(flow_field_theta.elements);
@@ -343,10 +346,10 @@ void render(void)
     SDL_RenderCopy(renderer, flow_field_texture, NULL, NULL);
     
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-    DrawCircle(renderer, (offset_x + 10)*zoom, (WINDOW_HEIGHT-offset_y)*zoom, a*zoom);
+    DrawCircle(renderer, (-offset_x)*zoom, WINDOW_HEIGHT+(offset_y)*zoom, a*zoom);
     
     for (int i = 0; i <= num_of_particals; i++) {
-        fill_circle(renderer, particals[i].x*zoom, particals[i].y*zoom, 10*zoom, turquoise_color);
+        fill_circle(renderer, particals[i].x*zoom, (WINDOW_HEIGHT - particals[i].y)*zoom, 10, turquoise_color);
     }
 
     SDL_RenderCopy(renderer, text_texture, NULL, &fps_place);
@@ -373,7 +376,7 @@ void fix_framerate(void)
     previous_frame_time = SDL_GetTicks();
 }
 
-float map(float s, float min_in, float max_in, float min_out, float max_out)
+float liniar_map(float s, float min_in, float max_in, float min_out, float max_out)
 {
     return (min_out + ((s-min_in)*(max_out-min_out))/(max_in-min_in));
 }
@@ -383,14 +386,15 @@ void generate_flow_field(void)
     vec2 current_vector_c, current_vector_p;
     vec2 current_position_c, current_position_p;
     float length, theta;
+
     for (int i = 0; i < rows; i++) {
         for (int j = 0; j < cols; j++) {
-            current_position_c.x = j*scale - offset_x;
-            current_position_c.y = WINDOW_HEIGHT - i*scale - offset_y;
+            current_position_c.x = j*scale + offset_x;
+            current_position_c.y = i*scale + offset_y;
 
             current_position_p = cartesian2polar(current_position_c);
 
-            current_vector_p = V_circle_p(current_position_p);
+            current_vector_p = V_vortex_p(current_position_p);
             current_vector_c = polar2cartesian(current_vector_p);
             theta = atan2f(current_vector_c.y, current_vector_c.x);
             length = vec2_length(&current_vector_c);
@@ -398,7 +402,7 @@ void generate_flow_field(void)
             MAT_AT(flow_field_theta, i, j) = theta;
 
             MAT_AT(flow_field_size, i, j) = length;
-            if (fabsf(length) > 0.5*a*a*U_inf) {
+            if (fabsf(length) > 35) {
                 continue;
             }
             if (length > max_length) {
@@ -408,9 +412,6 @@ void generate_flow_field(void)
                 min_length = length;
             }
 
-            if (fabsf(theta) > 10*2*PI) {
-                continue;
-            }
             if (theta > max_theta) {
                 max_theta = theta;
             }
@@ -427,42 +428,46 @@ void generate_flow_field(void)
         final_min_theta = min_theta;
         generated_flow_field = 1;
         // dprintF(final_max_length);
+        dprintF(max_theta);
+        dprintF(min_theta);
     }
 }
 
 void render_draw_flow_field_to_texture(SDL_Renderer *renderer, SDL_Texture *texture)
 {
-    float x1, y1, x2, y2, length, theta;
+    float length, theta;
     int in_cirle;
-    vec2 current_position;
+    vec2 origin, second_point, diff_between_points, current_position_c;
     
     SDL_SetRenderTarget(renderer, texture);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
     for (int i = 0; i < rows; i++) {
         for (int j = 0; j < cols; j++) {
-            x1 = j*scale;
-            x2 = ((x1 + MAT_AT(flow_field_size, i, j)*vector_length_factor*cosf(MAT_AT(flow_field_theta, i, j))*scale/2)); //techniclay needs to be scale/2
-            y1 = i*scale;
-            y2 = ((y1 + MAT_AT(flow_field_size, i, j)*vector_length_factor*sinf(MAT_AT(flow_field_theta, i, j))*scale/2)); //techniclay needs to be scale/2
-            current_position.x = x1 - offset_x;
-            current_position.y = WINDOW_HEIGHT - y1 - offset_y;
-             
-                        
-            in_cirle = hide_center? vec2_length(&current_position) <= a-10: 0;
-            
             theta = MAT_AT(flow_field_theta, i, j);
             length = MAT_AT(flow_field_size, i, j);
 
-            theta = map(theta,min_theta,final_max_theta,0,1);
-            length = map(length,min_length,final_max_length,0,1);
+            origin = vec2_new(j*scale, i*scale);
+
+            diff_between_points = vec2_new(
+                length * cosf(theta) * vector_length_factor,
+                length * sinf(theta) * vector_length_factor
+            );
+
+            second_point = vec2_add(&origin, &diff_between_points);
+
+            current_position_c = vec2_new(origin.x + offset_x, origin.y + offset_y);        
+            in_cirle = hide_center? vec2_length(&current_position_c) <= a: 0;
+            
+            theta = liniar_map(theta,min_theta,final_max_theta,0,1);
+            length = liniar_map(length,min_length,final_max_length,0,1);
             
             SDL_SetRenderDrawColor(renderer,255*length,255*(1-length),0,255);
             // SDL_SetRenderDrawColor(renderer,255*theta,255*(1-theta),0,255);
             // SDL_SetRenderDrawColor(renderer,255,255,255,255);
 
             if (!in_cirle) {
-                SDL_RenderDrawLineF(renderer, x1*zoom, y1*zoom, x2*zoom, y2*zoom);
+                SDL_RenderDrawLineF(renderer, origin.x*zoom, WINDOW_HEIGHT - origin.y*zoom, second_point.x*zoom, WINDOW_HEIGHT - second_point.y*zoom);
             }
         }
     }
@@ -488,9 +493,10 @@ vec2 V_vortex_p(vec2 v_in)
 {
     float r = v_in.x;
     float theta = v_in.y;
+    float u_theta = ((Gamma)/(2*PI*r)); 
     vec2 v_out = {
-        .x = 1,
-        .y = ((Gamma)/(2*PI*r))
+        .x = u_theta,
+        .y = theta + PI/2
     };
 
     return v_out;
@@ -499,12 +505,20 @@ vec2 V_vortex_p(vec2 v_in)
 
 vec2 V_circle_p(vec2 v_in)
 {
-    float r = v_in.x;
-    float theta = v_in.y;
-    vec2 v_out = {
-        .x = U_inf*cosf(theta)*(1-((a*a)/(r*r))),
-        .y = -U_inf*sinf(theta)*(1+((a*a)/(r*r))) - ((Gamma)/(2*PI*r))
-    };
+    vec2 vector_u_r, vector_u_theta, vector_u, v_out;
+    float r, theta, u_r, u_theta;
+
+    r = v_in.x;
+    theta = v_in.y;
+    u_r =  U_inf*cosf(theta)*(1-((a*a)/(r*r)));
+    u_theta = -U_inf*sinf(theta)*(1+((a*a)/(r*r))) - ((Gamma)/(2*PI*r));
+    vector_u_r = vec2_new(u_r * cosf(theta), u_r *sinf(theta));
+    vector_u_theta = vec2_new(- u_theta*sinf(theta), u_theta * cosf(theta));
+    vector_u = vec2_add(&vector_u_r, &vector_u_theta);
+    v_out = vec2_new(
+        vec2_length(&vector_u),
+        atan2f(vector_u.y, vector_u.x)
+    );
 
     return v_out;
 }
@@ -522,7 +536,7 @@ vec2 polar2cartesian(vec2 v_in)
 
 vec2 cartesian2polar(vec2 v_in)
 {
-    float theta = atan2f(v_in.y, -v_in.x);
+    float theta = atan2f(v_in.y, v_in.x);
     float length = vec2_length(&v_in);
     vec2 v_out = {
         .x = length,
@@ -583,5 +597,22 @@ void fill_circle(SDL_Renderer *renderer, int x, int y, int radius, SDL_Color col
                 SDL_RenderDrawPoint(renderer, x + dx, y + dy);
             }
         }
+    }
+}
+
+void update_particals(void)
+{
+    vec2 current_position_c, current_position_p, current_vector_c, current_vector_p;
+
+    for (int i = 0; i <= num_of_particals; i++) {
+        current_position_c = vec2_new((particals[i].x + offset_x), (particals[i].y + offset_y));
+        current_position_p = cartesian2polar(current_position_c);
+        current_vector_p = V_vortex_p(current_position_p);
+        current_vector_c = polar2cartesian(current_vector_p);
+
+        particals[i].v_x = current_vector_c.x*partical_velocity_factor;
+        particals[i].v_y = current_vector_c.y*partical_velocity_factor;
+        particals[i].x += particals[i].v_x*delta_time;
+        particals[i].y += particals[i].v_y*delta_time;
     }
 }
