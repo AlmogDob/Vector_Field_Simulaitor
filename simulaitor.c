@@ -1,7 +1,7 @@
-/* There is something horobly wrong with the V_circl.
-may by I will ask a friend to go over this code with me. I have friends
-that are better then me in math but i fill bad asking them because it
-will take a few hours, but may by they will by ready to help.*/
+/* Currently, this works. But,
+the 'zoom' doesn't work properly with the
+particals, so I will look in the future 
+what to do.*/
 
 
 #include <stdio.h>
@@ -70,14 +70,14 @@ float delta_time;
 float fps = 0;
 float scale = 30;
 float zoom = 1;
-float vector_length_factor = 20;
+float vector_length_factor = 2;
 int rows, cols;
 Mat flow_field_theta;
 Mat flow_field_size;
 
-float Q = 0;
-float Gamma = 0;
-float U_inf = -1;
+float Q = 1000;
+float Gamma = 8000;
+float U_inf = 10;
 float a = 40;
 
 float offset_x = -WINDOW_WIDTH/2;
@@ -103,7 +103,7 @@ int to_print = 0;
 int hide_center = 0;
 partical particals[100];
 int num_of_particals = -1;
-float partical_velocity_factor = 100;
+float partical_velocity_factor = 10;
 
 int main()
 {
@@ -300,7 +300,7 @@ void update(void)
         }
         if (diff_length > 0) {
             offset_x -= diff.x;
-            offset_y -= diff.y;
+            offset_y += diff.y;
         }
         
     }
@@ -326,7 +326,7 @@ void update(void)
         //     num_of_particals++;
         // }
         particals[num_of_particals].x = current_mouse_position.x*(1/zoom);
-        particals[num_of_particals].y = current_mouse_position.y*(1/zoom);
+        particals[num_of_particals].y = WINDOW_HEIGHT - (current_mouse_position.y)*(1/zoom);
 
     }
 
@@ -346,10 +346,10 @@ void render(void)
     SDL_RenderCopy(renderer, flow_field_texture, NULL, NULL);
     
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-    DrawCircle(renderer, (offset_x + 10)*zoom, (offset_y)*zoom, a*zoom);
+    DrawCircle(renderer, (-offset_x)*zoom, WINDOW_HEIGHT+(offset_y)*zoom, a*zoom);
     
     for (int i = 0; i <= num_of_particals; i++) {
-        fill_circle(renderer, particals[i].x*zoom, particals[i].y*zoom, 10, turquoise_color);
+        fill_circle(renderer, particals[i].x*zoom, (WINDOW_HEIGHT - particals[i].y)*zoom, 10, turquoise_color);
     }
 
     SDL_RenderCopy(renderer, text_texture, NULL, &fps_place);
@@ -394,7 +394,7 @@ void generate_flow_field(void)
 
             current_position_p = cartesian2polar(current_position_c);
 
-            current_vector_p = V_circle_p(current_position_p);
+            current_vector_p = V_vortex_p(current_position_p);
             current_vector_c = polar2cartesian(current_vector_p);
             theta = atan2f(current_vector_c.y, current_vector_c.x);
             length = vec2_length(&current_vector_c);
@@ -402,7 +402,7 @@ void generate_flow_field(void)
             MAT_AT(flow_field_theta, i, j) = theta;
 
             MAT_AT(flow_field_size, i, j) = length;
-            if (fabsf(length) > Q/(100*4)) {
+            if (fabsf(length) > 35) {
                 continue;
             }
             if (length > max_length) {
@@ -457,17 +457,17 @@ void render_draw_flow_field_to_texture(SDL_Renderer *renderer, SDL_Texture *text
             second_point = vec2_add(&origin, &diff_between_points);
 
             current_position_c = vec2_new(origin.x + offset_x, origin.y + offset_y);        
-            in_cirle = hide_center? vec2_length(&current_position_c) <= Q/(10*1.4): 0;
+            in_cirle = hide_center? vec2_length(&current_position_c) <= a: 0;
             
             theta = liniar_map(theta,min_theta,final_max_theta,0,1);
             length = liniar_map(length,min_length,final_max_length,0,1);
             
-            // SDL_SetRenderDrawColor(renderer,255*length,255*(1-length),0,255);
+            SDL_SetRenderDrawColor(renderer,255*length,255*(1-length),0,255);
             // SDL_SetRenderDrawColor(renderer,255*theta,255*(1-theta),0,255);
-            SDL_SetRenderDrawColor(renderer,255,255,255,255);
+            // SDL_SetRenderDrawColor(renderer,255,255,255,255);
 
             if (!in_cirle) {
-                SDL_RenderDrawLineF(renderer, origin.x*zoom, origin.y*zoom, second_point.x*zoom, second_point.y*zoom);
+                SDL_RenderDrawLineF(renderer, origin.x*zoom, WINDOW_HEIGHT - origin.y*zoom, second_point.x*zoom, WINDOW_HEIGHT - second_point.y*zoom);
             }
         }
     }
@@ -492,9 +492,11 @@ vec2 V_source_p(vec2 v_in)
 vec2 V_vortex_p(vec2 v_in)
 {
     float r = v_in.x;
+    float theta = v_in.y;
+    float u_theta = ((Gamma)/(2*PI*r)); 
     vec2 v_out = {
-        .x = 1,
-        .y = ((Gamma)/(2*PI*r))
+        .x = u_theta,
+        .y = theta + PI/2
     };
 
     return v_out;
@@ -503,12 +505,20 @@ vec2 V_vortex_p(vec2 v_in)
 
 vec2 V_circle_p(vec2 v_in)
 {
-    float r = v_in.x;
-    float theta = v_in.y;
-    vec2 v_out = {
-        .x = U_inf*cosf(theta)*(1-((a*a)/(r*r))),
-        .y = -U_inf*sinf(theta)*(1+((a*a)/(r*r))) - ((Gamma)/(2*PI*r))
-    };
+    vec2 vector_u_r, vector_u_theta, vector_u, v_out;
+    float r, theta, u_r, u_theta;
+
+    r = v_in.x;
+    theta = v_in.y;
+    u_r =  U_inf*cosf(theta)*(1-((a*a)/(r*r)));
+    u_theta = -U_inf*sinf(theta)*(1+((a*a)/(r*r))) - ((Gamma)/(2*PI*r));
+    vector_u_r = vec2_new(u_r * cosf(theta), u_r *sinf(theta));
+    vector_u_theta = vec2_new(- u_theta*sinf(theta), u_theta * cosf(theta));
+    vector_u = vec2_add(&vector_u_r, &vector_u_theta);
+    v_out = vec2_new(
+        vec2_length(&vector_u),
+        atan2f(vector_u.y, vector_u.x)
+    );
 
     return v_out;
 }
@@ -597,11 +607,11 @@ void update_particals(void)
     for (int i = 0; i <= num_of_particals; i++) {
         current_position_c = vec2_new((particals[i].x + offset_x), (particals[i].y + offset_y));
         current_position_p = cartesian2polar(current_position_c);
-        current_vector_p = V_circle_p(current_position_p);
+        current_vector_p = V_vortex_p(current_position_p);
         current_vector_c = polar2cartesian(current_vector_p);
 
-        particals[i].v_x += current_vector_c.x*partical_velocity_factor;
-        particals[i].v_y += current_vector_c.y*partical_velocity_factor;
+        particals[i].v_x = current_vector_c.x*partical_velocity_factor;
+        particals[i].v_y = current_vector_c.y*partical_velocity_factor;
         particals[i].x += particals[i].v_x*delta_time;
         particals[i].y += particals[i].v_y*delta_time;
     }
