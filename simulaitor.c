@@ -195,6 +195,21 @@ void setup(void)
                                            WINDOW_WIDTH,
                                            WINDOW_HEIGHT);
 
+    rows = (int)((WINDOW_HEIGHT * (1/zoom))/scale);
+    cols = (int)((WINDOW_WIDTH * (1/zoom))/scale);
+
+    flow_field_theta = mat_alloc(rows, cols);
+    flow_field_size = mat_alloc(rows, cols);
+
+    generate_flow_field();
+
+    if (to_print) {
+        MAT_PRINT(flow_field_size); 
+        to_print = 0;
+    }
+    render_draw_flow_field_to_texture(renderer, flow_field_texture);
+    free(flow_field_theta.elements);
+    free(flow_field_size.elements);
 }
 
 void process_input(void)
@@ -294,6 +309,23 @@ void update(void)
     diff_length = vec2_length(&diff);
         
     if (left_button_pressed) {
+        rows = (int)((WINDOW_HEIGHT * (1/zoom))/scale);
+        cols = (int)((WINDOW_WIDTH * (1/zoom))/scale);
+
+        flow_field_theta = mat_alloc(rows, cols);
+        flow_field_size = mat_alloc(rows, cols);
+
+        generate_flow_field();
+
+        if (to_print) {
+            MAT_PRINT(flow_field_size); 
+            to_print = 0;
+        }
+        render_draw_flow_field_to_texture(renderer, flow_field_texture);
+        
+        free(flow_field_theta.elements);
+        free(flow_field_size.elements);
+        
         if (!left_mouse_was_pressed) {
             last_mouse_position = vec2_add(&last_mouse_position, &current_mouse_position);
             left_mouse_was_pressed = 1;
@@ -306,21 +338,7 @@ void update(void)
     }
     last_mouse_position = current_mouse_position;
 
-    rows = (int)((WINDOW_HEIGHT * (1/zoom))/scale);
-    cols = (int)((WINDOW_WIDTH * (1/zoom))/scale);
-
-    flow_field_theta = mat_alloc(rows, cols);
-    flow_field_size = mat_alloc(rows, cols);
-
-    generate_flow_field();
-
-    if (to_print) {
-        MAT_PRINT(flow_field_size); 
-        to_print = 0;
-    }
-    render_draw_flow_field_to_texture(renderer, flow_field_texture);
-
-
+    
     if (right_button_pressed) {
         // if (num_of_particals < 99) {
         //     num_of_particals++;
@@ -334,8 +352,7 @@ void update(void)
     
 
 
-    free(flow_field_theta.elements);
-    free(flow_field_size.elements);
+    
 }
 
 void render(void)
@@ -460,7 +477,7 @@ void render_draw_flow_field_to_texture(SDL_Renderer *renderer, SDL_Texture *text
             in_cirle = hide_center? vec2_length(&current_position_c) <= a: 0;
             
             theta = liniar_map(theta,min_theta,final_max_theta,0,1);
-            length = liniar_map(length,min_length,final_max_length,0,1);
+            length = liniar_map(length,min_length,35,0,1);
             
             SDL_SetRenderDrawColor(renderer,255*length,255*(1-length),0,255);
             // SDL_SetRenderDrawColor(renderer,255*theta,255*(1-theta),0,255);
