@@ -626,5 +626,4 @@ void creat_and_render_to_texture_vector_field(void)
     
     free(vector_field_theta.elements);
     free(vector_field_size.elements);
-        
 }
