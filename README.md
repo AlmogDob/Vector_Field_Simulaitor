@@ -1,5 +1,5 @@
 # Vector Field Simulaitor
-This is a [C] program that can visualize Vector Field using the SDL library.
+This C program can visualize Vector fields using the SDL library.
 
 ## How to use
 To add your vector field you need to add a function that accepts a vec2 and returns vec2.
@@ -50,6 +50,11 @@ There are several supported inputs to the program:
 * left mouse button - move the field.
 * right mouse button - spawn a new particle if possible.
 * scroll wheel - increase or decrease the resolution of the field.
+
+
+## Want TODO
+Change all the calls for the vector field function to a pointer to the function, so you will need to change one thing to change the field.
+To do this, I will need to reread on pointers to functions.
 
 ## License
 
