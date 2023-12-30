@@ -220,7 +220,9 @@ void process_input(void)
                     min_theta = 1000;
                     scale = 30;
                     zoom = 1;
-                    num_of_particals = -1;    
+                    num_of_particals = -1;
+
+                    creat_and_render_to_texture_vector_field();    
                 }
                 if (event.key.keysym.sym == SDLK_p) {
                     to_print = 1;
