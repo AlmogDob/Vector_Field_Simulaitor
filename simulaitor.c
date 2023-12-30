@@ -1,9 +1,3 @@
-/* Currently, this works. But,
-the 'zoom' doesn't work properly with the
-particals, so I will look in the future 
-what to do.*/
-
-
 #include <stdio.h>
 #include <time.h>
 #include <math.h>
