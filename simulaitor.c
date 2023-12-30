@@ -42,8 +42,9 @@ void render(void);
 void destroy_window(void);
 void fix_framerate(void);
 float liniar_map(float s, float min_in, float max_in, float min_out, float max_out);
-void generate_flow_field(void);
-void render_draw_flow_field_to_texture(SDL_Renderer *renderer, SDL_Texture *texture);
+void generate_vector_field(void);
+void render_draw_vector_field_to_texture(SDL_Renderer *renderer, SDL_Texture *texture);
+void creat_and_render_to_texture_vector_field(void);
 vec2 V_source_p(vec2 v_in);
 vec2 V_vortex_p(vec2 v_in);
 vec2 V_circle_p(vec2 v_in);
@@ -59,9 +60,9 @@ SDL_Renderer *background_renderer = NULL;
 TTF_Font *font = NULL;
 SDL_Surface *text_surface = NULL;
 SDL_Texture *text_texture = NULL;
-SDL_Texture *flow_field_texture = NULL;
+SDL_Texture *vector_field_texture = NULL;
 SDL_Rect fps_place;
-SDL_Rect flow_field_texture_rect;
+SDL_Rect vector_field_texture_rect;
 SDL_Color white_color;
 SDL_Color field_color;
 SDL_Color turquoise_color;
@@ -72,8 +73,8 @@ float scale = 30;
 float zoom = 1;
 float vector_length_factor = 2;
 int rows, cols;
-Mat flow_field_theta;
-Mat flow_field_size;
+Mat vector_field_theta;
+Mat vector_field_size;
 
 float Q = 1000;
 float Gamma = 8000;
@@ -94,7 +95,7 @@ float min_theta;
 float final_max_theta;
 float final_min_theta;
 
-int generated_flow_field = 0;
+int generated_vector_field = 0;
 int left_button_pressed = 0;
 int left_mouse_was_pressed = 0;
 int right_button_pressed = 0;
@@ -184,32 +185,18 @@ void setup(void)
     fps_place.w = 400;
     fps_place.h = 25;
 
-    flow_field_texture_rect.x = 0;
-    flow_field_texture_rect.y = 0;
-    flow_field_texture_rect.w = WINDOW_WIDTH;
-    flow_field_texture_rect.h = WINDOW_HEIGHT;
+    vector_field_texture_rect.x = 0;
+    vector_field_texture_rect.y = 0;
+    vector_field_texture_rect.w = WINDOW_WIDTH;
+    vector_field_texture_rect.h = WINDOW_HEIGHT;
 
-    flow_field_texture = SDL_CreateTexture(renderer,
+    vector_field_texture = SDL_CreateTexture(renderer,
                                            SDL_PIXELFORMAT_RGBA32,
                                            SDL_TEXTUREACCESS_TARGET,
                                            WINDOW_WIDTH,
                                            WINDOW_HEIGHT);
 
-    rows = (int)((WINDOW_HEIGHT * (1/zoom))/scale);
-    cols = (int)((WINDOW_WIDTH * (1/zoom))/scale);
-
-    flow_field_theta = mat_alloc(rows, cols);
-    flow_field_size = mat_alloc(rows, cols);
-
-    generate_flow_field();
-
-    if (to_print) {
-        MAT_PRINT(flow_field_size); 
-        to_print = 0;
-    }
-    render_draw_flow_field_to_texture(renderer, flow_field_texture);
-    free(flow_field_theta.elements);
-    free(flow_field_size.elements);
+    creat_and_render_to_texture_vector_field();
 }
 
 void process_input(void)
@@ -241,9 +228,13 @@ void process_input(void)
                 if (event.key.keysym.sym == SDLK_h) {
                     if (!hide_center) {
                         hide_center = 1;
+
+                        creat_and_render_to_texture_vector_field();
                     }
                     else if (hide_center) {
                         hide_center = 0;
+
+                        creat_and_render_to_texture_vector_field();
                     }
                 }
                 if (event.key.keysym.sym == SDLK_d) {
@@ -251,9 +242,11 @@ void process_input(void)
                 }
                 if (event.key.keysym.sym == SDLK_UP) {
                     zoom += 0.1;
+                    creat_and_render_to_texture_vector_field();
                 }
                 if (event.key.keysym.sym == SDLK_DOWN) {
                     zoom -= 0.1;
+                    creat_and_render_to_texture_vector_field();
                 }
                 break;
             case SDL_MOUSEBUTTONDOWN:
@@ -279,6 +272,7 @@ void process_input(void)
                 break;
             case SDL_MOUSEWHEEL:
                 scale += event.wheel.y;
+                creat_and_render_to_texture_vector_field();
                 break;
         }
     }
@@ -309,23 +303,8 @@ void update(void)
     diff_length = vec2_length(&diff);
         
     if (left_button_pressed) {
-        rows = (int)((WINDOW_HEIGHT * (1/zoom))/scale);
-        cols = (int)((WINDOW_WIDTH * (1/zoom))/scale);
+        creat_and_render_to_texture_vector_field();
 
-        flow_field_theta = mat_alloc(rows, cols);
-        flow_field_size = mat_alloc(rows, cols);
-
-        generate_flow_field();
-
-        if (to_print) {
-            MAT_PRINT(flow_field_size); 
-            to_print = 0;
-        }
-        render_draw_flow_field_to_texture(renderer, flow_field_texture);
-        
-        free(flow_field_theta.elements);
-        free(flow_field_size.elements);
-        
         if (!left_mouse_was_pressed) {
             last_mouse_position = vec2_add(&last_mouse_position, &current_mouse_position);
             left_mouse_was_pressed = 1;
@@ -333,8 +312,7 @@ void update(void)
         if (diff_length > 0) {
             offset_x -= diff.x;
             offset_y += diff.y;
-        }
-        
+        } 
     }
     last_mouse_position = current_mouse_position;
 
@@ -348,11 +326,7 @@ void update(void)
 
     }
 
-    update_particals();
-    
-
-
-    
+    update_particals();  
 }
 
 void render(void)
@@ -360,7 +334,7 @@ void render(void)
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
 
-    SDL_RenderCopy(renderer, flow_field_texture, NULL, NULL);
+    SDL_RenderCopy(renderer, vector_field_texture, NULL, NULL);
     
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     DrawCircle(renderer, (-offset_x)*zoom, WINDOW_HEIGHT+(offset_y)*zoom, a*zoom);
@@ -398,7 +372,7 @@ float liniar_map(float s, float min_in, float max_in, float min_out, float max_o
     return (min_out + ((s-min_in)*(max_out-min_out))/(max_in-min_in));
 }
 
-void generate_flow_field(void)
+void generate_vector_field(void)
 {
     vec2 current_vector_c, current_vector_p;
     vec2 current_position_c, current_position_p;
@@ -416,9 +390,9 @@ void generate_flow_field(void)
             theta = atan2f(current_vector_c.y, current_vector_c.x);
             length = vec2_length(&current_vector_c);
             
-            MAT_AT(flow_field_theta, i, j) = theta;
+            MAT_AT(vector_field_theta, i, j) = theta;
 
-            MAT_AT(flow_field_size, i, j) = length;
+            MAT_AT(vector_field_size, i, j) = length;
             if (fabsf(length) > 35) {
                 continue;
             }
@@ -438,19 +412,19 @@ void generate_flow_field(void)
             
         }
     }
-    if (!generated_flow_field) {
+    if (!generated_vector_field) {
         final_max_length = max_length;
         final_min_length = min_length;
         final_max_theta = max_theta;
         final_min_theta = min_theta;
-        generated_flow_field = 1;
+        generated_vector_field = 1;
         // dprintF(final_max_length);
         dprintF(max_theta);
         dprintF(min_theta);
     }
 }
 
-void render_draw_flow_field_to_texture(SDL_Renderer *renderer, SDL_Texture *texture)
+void render_draw_vector_field_to_texture(SDL_Renderer *renderer, SDL_Texture *texture)
 {
     float length, theta;
     int in_cirle;
@@ -461,8 +435,8 @@ void render_draw_flow_field_to_texture(SDL_Renderer *renderer, SDL_Texture *text
     SDL_RenderClear(renderer);
     for (int i = 0; i < rows; i++) {
         for (int j = 0; j < cols; j++) {
-            theta = MAT_AT(flow_field_theta, i, j);
-            length = MAT_AT(flow_field_size, i, j);
+            theta = MAT_AT(vector_field_theta, i, j);
+            length = MAT_AT(vector_field_size, i, j);
 
             origin = vec2_new(j*scale, i*scale);
 
@@ -632,4 +606,25 @@ void update_particals(void)
         particals[i].x += particals[i].v_x*delta_time;
         particals[i].y += particals[i].v_y*delta_time;
     }
+}
+
+void creat_and_render_to_texture_vector_field(void)
+{
+    rows = (int)((WINDOW_HEIGHT * (1/zoom))/scale);
+    cols = (int)((WINDOW_WIDTH * (1/zoom))/scale);
+
+    vector_field_theta = mat_alloc(rows, cols);
+    vector_field_size = mat_alloc(rows, cols);
+
+    generate_vector_field();
+
+    if (to_print) {
+        MAT_PRINT(vector_field_size); 
+        to_print = 0;
+    }
+    render_draw_vector_field_to_texture(renderer, vector_field_texture);
+    
+    free(vector_field_theta.elements);
+    free(vector_field_size.elements);
+        
 }
