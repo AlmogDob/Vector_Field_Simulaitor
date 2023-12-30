@@ -14,6 +14,7 @@
 #define WINDOW_HEIGHT 1000
 #define FPS 30
 #define FRAME_TARGET_TIME (1000 / FPS)
+#define MAX_NUMBER_OF_PARTICALES 100
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #define dprintINT(expr) printf(#expr " = %d\n", expr)
@@ -96,7 +97,7 @@ int right_button_pressed = 0;
 vec2 last_mouse_position = {.x = 0, .y = 0};
 int to_print = 0;
 int hide_center = 0;
-partical particals[100];
+partical particals[MAX_NUMBER_OF_PARTICALES];
 int num_of_particals = -1;
 float partical_velocity_factor = 10;
 
@@ -287,7 +288,7 @@ void update(void)
     // printf("%d\n", (int)fps);
 
     char fps_count[100];
-    sprintf(fps_count, "FPS = %8.4g  |  num of particals = %d", fps, num_of_particals+1);
+    sprintf(fps_count, "FPS = %8.4g  |  num of particals = %d/%d", fps, num_of_particals+1, MAX_NUMBER_OF_PARTICALES);
     text_surface = TTF_RenderText_Solid(font, fps_count,white_color);
 
     text_texture = SDL_CreateTextureFromSurface(renderer,text_surface);
