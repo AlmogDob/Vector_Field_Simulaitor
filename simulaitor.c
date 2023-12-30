@@ -322,7 +322,7 @@ void update(void)
         //     num_of_particals++;
         // }
         particals[num_of_particals].x = current_mouse_position.x*(1/zoom);
-        particals[num_of_particals].y = WINDOW_HEIGHT - (current_mouse_position.y)*(1/zoom);
+        particals[num_of_particals].y = (WINDOW_HEIGHT - current_mouse_position.y)*(1/zoom);
 
     }
 
@@ -340,7 +340,7 @@ void render(void)
     DrawCircle(renderer, (-offset_x)*zoom, WINDOW_HEIGHT+(offset_y)*zoom, a*zoom);
     
     for (int i = 0; i <= num_of_particals; i++) {
-        fill_circle(renderer, particals[i].x*zoom, (WINDOW_HEIGHT - particals[i].y)*zoom, 10, turquoise_color);
+        fill_circle(renderer, particals[i].x*zoom, WINDOW_HEIGHT - particals[i].y*zoom, 10, turquoise_color);
     }
 
     SDL_RenderCopy(renderer, text_texture, NULL, &fps_place);
@@ -596,7 +596,7 @@ void update_particals(void)
     vec2 current_position_c, current_position_p, current_vector_c, current_vector_p;
 
     for (int i = 0; i <= num_of_particals; i++) {
-        current_position_c = vec2_new((particals[i].x + offset_x), (particals[i].y + offset_y));
+        current_position_c = vec2_new((particals[i].x + offset_x)*zoom, (particals[i].y + offset_y)*zoom);
         current_position_p = cartesian2polar(current_position_c);
         current_vector_p = V_vortex_p(current_position_p);
         current_vector_c = polar2cartesian(current_vector_p);
