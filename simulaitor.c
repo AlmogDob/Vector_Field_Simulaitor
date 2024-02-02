@@ -49,6 +49,8 @@ void DrawCircle(SDL_Renderer * renderer, int32_t centreX, int32_t centreY, int32
 void fill_circle(SDL_Renderer *renderer, int x, int y, int radius, SDL_Color color);
 void update_particals(void);
 
+vec2 (*my_field_function)(vec2);
+
 SDL_Window *window = NULL;
 SDL_Renderer *renderer = NULL;
 SDL_Renderer *background_renderer = NULL;
@@ -66,13 +68,13 @@ float delta_time;
 float fps = 0;
 float scale = 30;
 float zoom = 1;
-float vector_length_factor = 2;
+float vector_length_factor = 4;
 int rows, cols;
 Mat vector_field_theta;
 Mat vector_field_size;
 
 float Q = 1000;
-float Gamma = 8000;
+float Gamma = 4000;
 float U_inf = 10;
 float a = 40;
 
@@ -99,7 +101,7 @@ int to_print = 0;
 int hide_center = 0;
 partical particals[MAX_NUMBER_OF_PARTICALES];
 int num_of_particals = -1;
-float partical_velocity_factor = 10;
+float partical_velocity_factor = 30;
 
 int main()
 {
@@ -159,6 +161,8 @@ int initialize_window(void)
 
 void setup(void)
 {
+    my_field_function = V_source_p;
+
     original_offset_x = offset_x;
     original_offset_y = offset_y;
 
@@ -382,7 +386,7 @@ void generate_vector_field(void)
 
             current_position_p = cartesian2polar(current_position_c);
 
-            current_vector_p = V_vortex_p(current_position_p);
+            current_vector_p = my_field_function(current_position_p);
             current_vector_c = polar2cartesian(current_vector_p);
             theta = atan2f(current_vector_c.y, current_vector_c.x);
             length = vec2_length(&current_vector_c);
@@ -390,7 +394,7 @@ void generate_vector_field(void)
             MAT_AT(vector_field_theta, i, j) = theta;
 
             MAT_AT(vector_field_size, i, j) = length;
-            if (fabsf(length) > 35) {
+            if (fabsf(length) > 10) {
                 continue;
             }
             if (length > max_length) {
@@ -416,8 +420,8 @@ void generate_vector_field(void)
         final_min_theta = min_theta;
         generated_vector_field = 1;
         // dprintF(final_max_length);
-        dprintF(max_theta);
-        dprintF(min_theta);
+        // dprintF(max_theta);
+        // dprintF(min_theta);
     }
 }
 
@@ -595,7 +599,7 @@ void update_particals(void)
     for (int i = 0; i <= num_of_particals; i++) {
         current_position_c = vec2_new((particals[i].x + offset_x)*zoom, (particals[i].y + offset_y)*zoom);
         current_position_p = cartesian2polar(current_position_c);
-        current_vector_p = V_vortex_p(current_position_p);
+        current_vector_p = my_field_function(current_position_p);
         current_vector_c = polar2cartesian(current_vector_p);
 
         particals[i].v_x = current_vector_c.x*partical_velocity_factor;
