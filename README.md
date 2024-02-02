@@ -3,23 +3,17 @@ This C program can visualize Vector fields using the SDL library.
 
 ## How to use
 To add your vector field you need to add a function that accepts a vec2 and returns vec2.
-Then you need to change the function in use to your function in two places:
-* In 'generate_vector_field' func. In the line:
+Then you need to change the function in use to your function in one places:
+* In 'setup' func. In the line:
 
 ``` C
-current_vector_p = V_vortex_p(current_position_p);
-```
-
-* In 'generate_vector_field' func. In the line:
-
-``` C
-current_vector_p = V_vortex_p(current_position_p);
+my_field_function = V_source_p;
 ```
 
 After that, you are basically good to go (given that you have SDL installed on your machine - https://wiki.libsdl.org/SDL2/Installation).
 
 ## Overview of the code
-* Every time you change something, you generate 2 new matrixes that describe the field 
+* Every time you change something, you update the 2 matrixes that describe the field 
     * size matrix
     * theta matrix
 
@@ -29,7 +23,7 @@ Then the program renders the field into a texture that you can display at any ti
 * the particles have *NO* connection to the matrixes of the vector field. So you need to make sure they work on the same vector field function.
 
 
-* You can limit the FPS by uncommenting the line:
+* You can limit the FPS by uncommenting the line (like in the example):
 ``` C
     if (time_to_wait > 0 && time_to_wait < FRAME_TARGET_TIME) {
         // SDL_Delay(time_to_wait);
@@ -51,10 +45,6 @@ There are several supported inputs to the program:
 * right mouse button - spawn a new particle if possible.
 * scroll wheel - increase or decrease the resolution of the field.
 
-
-## Want TODO
-Change all the calls for the vector field function to a pointer to the function, so you will need to change one thing to change the field.
-To do this, I will need to reread on pointers to functions.
 
 ## License
 
