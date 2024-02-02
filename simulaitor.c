@@ -1,3 +1,8 @@
+/* This program is inspired by Programming Chaos's video 'Programming Flow Fields'.
+You can find the video here:
+https://youtu.be/_HGh0tfMx7Q .*/
+
+
 #include <stdio.h>
 #include <time.h>
 #include <math.h>
