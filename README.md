@@ -16,7 +16,7 @@ current_vector_p = V_vortex_p(current_position_p);
 current_vector_p = V_vortex_p(current_position_p);
 ```
 
-After that, you are basically good to go (given that you have SDL installed on your machine).
+After that, you are basically good to go (given that you have SDL installed on your machine - https://wiki.libsdl.org/SDL2/Installation).
 
 ## Overview of the code
 * Every time you change something, you generate 2 new matrixes that describe the field 
